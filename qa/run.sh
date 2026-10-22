@@ -23,7 +23,7 @@ echo "== PWA: bypass + login"
 python3 qa/cdp.py nav "https://$H/?x-vercel-protection-bypass=$BYPASS&x-vercel-set-bypass-cookie=true" ; sleep 12
 python3 qa/cdp.py nav "https://$H/login"; sleep 10; dismiss
 shot pwa-login-page
-python3 qa/cdp.py login | tee $O/text/login-result.txt; sleep 10
+python3 qa/cdp.py login 2>&1 | tee $O/text/login-result.txt; sleep 12
 shot pwa-after-login
 
 echo "== PWA: install via Chrome menu"
@@ -32,13 +32,15 @@ shot pwa-menu
 uia tap '^(Install app|Add to (H|h)ome screen)$'; sleep 4
 shot pwa-install-dialog
 uia tap '^(Install|Add)$'; sleep 6
-uia tap '^(Add|Add automatically|Install)$'; sleep 40
+uia tap '^(Add|Add automatically|Install|Add to home screen)$'; sleep 40
 shot pwa-after-install
 adb shell pm list packages | grep -i webapk | tee $O/webapk-packages.txt
 WEBAPK=$(sed -n 's/package://p' $O/webapk-packages.txt | head -1)
 adb shell input keyevent HOME; sleep 2; shot home-screen
 
 TEXT="QA share text: paid 120 ILS to Dentist Cohen on 2026-10-22"
+adb install -r qa-sharer.apk | tee $O/sharer-install.txt
+share(){ adb shell am start -n com.ten10qa.sharer/.ShareActivity --es pkg "$1" --es mode "$2" --es text "\"${3:-}\"" | tee -a $O/am.txt; }
 adb push qa/assets/receipt.png /sdcard/Download/receipt.png
 adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Download/receipt.png; sleep 4
 adb shell content query --uri content://media/external/images/media --projection _id:_display_name | tee $O/mediastore.txt
@@ -49,10 +51,8 @@ echo "file uri: $URI" | tee $O/file-uri.txt
 if [ -n "$WEBAPK" ]; then
   echo "== PWA text (WebAPK $WEBAPK)"
   adb shell dumpsys package "$WEBAPK" | grep -A3 -E "android.intent.action.SEND" > $O/webapk-intents.txt
-  adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "\"$TEXT\"" -p "$WEBAPK" | tee -a $O/am.txt; sleep 20
-  shot pwa-text-share
-  adb shell am start -a android.intent.action.SEND -t image/png --eu android.intent.extra.STREAM "$URI" --grant-read-uri-permission -p "$WEBAPK" | tee -a $O/am.txt; sleep 20
-  shot pwa-file-share
+  share "$WEBAPK" text "$TEXT (PWA)"; sleep 20; shot pwa-text-share
+  share "$WEBAPK" file; sleep 20; shot pwa-file-share
 else
   echo "NO WEBAPK minted; falling back to in-page POST /share-target (exercises SW + app intake, not the OS share sheet)" | tee $O/pwa-fallback.txt
   adb shell am start -n $A/com.google.android.apps.chrome.Main -d "https://$H/"; sleep 10
@@ -68,11 +68,13 @@ adb shell dumpsys package com.ten10_app.twa | grep -B1 -A4 "android.intent.actio
 adb shell pm get-app-links com.ten10_app.twa > $O/twa-applinks.txt 2>&1
 adb shell monkey -p com.ten10_app.twa -c android.intent.category.LAUNCHER 1; sleep 15; dismiss
 shot twa-launch
-adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "\"$TEXT (TWA)\"" -p com.ten10_app.twa | tee -a $O/am.txt; sleep 20
-shot twa-text-share
-adb shell am start -a android.intent.action.SEND -t image/png --eu android.intent.extra.STREAM "$URI" --grant-read-uri-permission -p com.ten10_app.twa | tee -a $O/am.txt; sleep 20
-shot twa-file-share
-
+share com.ten10_app.twa text "$TEXT (TWA warm)"; sleep 20; shot twa-text-share-warm
+share com.ten10_app.twa file; sleep 20; shot twa-file-share-warm
+adb shell am force-stop com.ten10_app.twa; adb shell am force-stop $A; sleep 2
+share com.ten10_app.twa text "$TEXT (TWA cold)"; sleep 25; shot twa-text-share-cold
+adb shell am force-stop com.ten10_app.twa; adb shell am force-stop $A; sleep 2
+share com.ten10_app.twa file; sleep 25; shot twa-file-share-cold
+if python3 qa/cdp.py text 2>/dev/null | grep -q "/login"; then python3 qa/cdp.py login 2>&1 | tee -a $O/text/login-result.txt; sleep 15; shot twa-after-login; fi
 adb logcat -d > $O/logcat-full.txt
 grep -iE "chromium|cr_|ten10|webapk|TrustedWeb|TWA|ShareTarget|browserhelper" $O/logcat-full.txt > $O/logcat-filtered.txt
 rm $O/logcat-full.txt

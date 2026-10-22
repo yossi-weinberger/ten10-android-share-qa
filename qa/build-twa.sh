@@ -20,3 +20,10 @@ chmod +x gradlew
 ./gradlew --no-daemon -q assembleDebug
 find . -name '*.apk' -path '*debug*' | head -1 | xargs -I{} cp {} ../ten10-twa-debug.apk
 ls -la ../ten10-twa-debug.apk
+# QA sharer app (real-app style share source), reusing the TWA project's Gradle setup.
+cd ../sharer
+cp ../twa/build.gradle ./build.gradle
+cp -r ../twa/gradle ../twa/gradlew ../twa/gradle.properties . 2>/dev/null || cp -r ../twa/gradle ../twa/gradlew .
+./gradlew --no-daemon -q assembleDebug
+cp app/build/outputs/apk/debug/app-debug.apk ../qa-sharer.apk
+ls -la ../qa-sharer.apk

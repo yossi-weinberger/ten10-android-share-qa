@@ -19,11 +19,13 @@ def targets():
         return [t for t in json.load(r) if t.get("type") == "page"]
 
 def pick(any_page=False):
-    ts = targets()
-    hits = [t for t in ts if HOST in t.get("url", "")]
-    if hits:
-        return hits[0]
-    if ts and any_page:
+    for _ in range(15):
+        ts = targets()
+        hits = [t for t in ts if HOST in t.get("url", "")]
+        if hits:
+            return hits[0]
+        time.sleep(2)
+    if ts:
         return ts[0]
     raise SystemExit("no matching page target: " + scrub([t.get("url") for t in ts]))
 
