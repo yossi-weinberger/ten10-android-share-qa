@@ -9,7 +9,8 @@ uia(){ python3 qa/uia.py "$@" || true; }
 dismiss(){ for i in 1 2 3 4; do uia tap '^(Accept & continue|Use without an account|No thanks|Got it|No, thanks|Continue|Not now)$' | grep -q tapped || break; sleep 2; done; }
 
 adb shell settings put global window_animation_scale 0; adb shell settings put global transition_animation_scale 0; adb shell settings put global animator_duration_scale 0
-adb shell 'echo "_ --disable-fre --no-default-browser-check --no-first-run" > /data/local/tmp/chrome-command-line'
+adb shell "echo '_ --disable-fre --no-default-browser-check --no-first-run --disable-digital-asset-link-verification-for-url=https://$H' > /data/local/tmp/chrome-command-line"
+adb shell cat /data/local/tmp/chrome-command-line > $O/chrome-command-line.txt
 adb shell am set-debug-app --persistent $A
 adb shell dumpsys package $A | grep -E "versionName" | head -1 | tee $O/chrome-version.txt
 adb shell getprop ro.build.fingerprint >> $O/chrome-version.txt
