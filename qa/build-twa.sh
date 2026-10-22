@@ -15,7 +15,7 @@ mkdir -p ~/.bubblewrap
 echo "{\"jdkPath\":\"$JAVA_HOME\",\"androidSdkPath\":\"$ANDROID_HOME\"}" > ~/.bubblewrap/config.json
 npm i -g @bubblewrap/cli@1.24.1 >/dev/null 2>&1 || npm i -g @bubblewrap/cli
 cd twa
-yes | bubblewrap update --skipVersionUpgrade --manifest=./twa-manifest.json
+bubblewrap update --skipVersionUpgrade --manifest=./twa-manifest.json < /dev/null
 chmod +x gradlew
 ./gradlew --no-daemon -q assembleDebug
 find . -name '*.apk' -path '*debug*' | head -1 | xargs -I{} cp {} ../ten10-twa-debug.apk
