@@ -1,0 +1,46 @@
+name: android-share-qa
+on:
+  workflow_dispatch:
+    inputs:
+      preview_host:
+        description: Vercel preview host (no scheme)
+        required: true
+        default: ten10-hljc5eufi-yossi-weinbergers-projects.vercel.app
+jobs:
+  share:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PREVIEW_HOST: ${{ inputs.preview_host }}
+      BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      QA_EMAIL: ${{ secrets.TEN10_QA_EMAIL }}
+      QA_PASSWORD: ${{ secrets.TEN10_QA_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: pip install websocket-client
+      - name: Build TWA (Bubblewrap, debug key)
+        run: bash qa/build-twa.sh
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Emulator + share tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          ram-size: 4096M
+          disk-size: 6000M
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          disable-animations: true
+          script: bash qa/run.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-share-artifacts
+          path: artifacts/
