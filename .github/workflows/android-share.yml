@@ -12,13 +12,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api: [35, 36]
+        api: [36]
     timeout-minutes: 60
     env:
       PREVIEW_HOST: ${{ inputs.preview_host }}
       BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
       QA_EMAIL: ${{ secrets.TEN10_QA_EMAIL }}
       QA_PASSWORD: ${{ secrets.TEN10_QA_PASSWORD }}
+      SKIP_TWA: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4

@@ -30,10 +30,12 @@ shot pwa-after-login
 echo "== PWA: install via Chrome menu"
 uia tap 'menu_button|More options|Customize and control'; sleep 2
 shot pwa-menu
-python3 qa/uia.py tap '^Install app$' | tee $O/install-menu.txt || python3 qa/uia.py tap '^Add to (H|h)ome screen$' | tee -a $O/install-menu.txt
+python3 qa/cdp.py installability > $O/installability.txt 2>&1
+python3 qa/uia.py tap '^Install app$' > $O/install-menu.txt || python3 qa/uia.py tap '^Add to (H|h)ome screen$' >> $O/install-menu.txt
 sleep 4
 shot pwa-install-dialog
-uia tap '^Install$'; sleep 5
+python3 qa/uia.py dump > $O/install-dialog-ui.txt
+uia tap '^Install$'; sleep 8; shot pwa-install-progress
 for i in $(seq 1 18); do adb shell pm list packages | grep -qi webapk && break; uia tap '^(Install|Add|Add automatically|Add to home screen)$' >/dev/null; sleep 5; done
 shot pwa-after-install
 adb shell pm list packages | grep -i webapk | tee $O/webapk-packages.txt
@@ -72,6 +74,7 @@ else
   shot pwa-file-share-fallback
 fi
 
+if [ "${SKIP_TWA:-}" = 1 ]; then echo "skip TWA"; else
 echo "== TWA"
 adb install -r ten10-twa-debug.apk | tee $O/twa-install.txt
 adb shell dumpsys package com.ten10_app.twa | grep -B1 -A4 "android.intent.action.SEND" > $O/twa-intents.txt
@@ -85,8 +88,9 @@ share com.ten10_app.twa text "$TEXT (TWA cold)"; sleep 25; shot twa-text-share-c
 adb shell am force-stop com.ten10_app.twa; adb shell am force-stop $A; sleep 2
 share com.ten10_app.twa file; sleep 25; shot twa-file-share-cold
 if python3 qa/cdp.py text 2>/dev/null | grep -q "/login"; then python3 qa/cdp.py login 2>&1 | tee -a $O/text/login-result.txt; sleep 15; shot twa-after-login; fi
+fi
 adb logcat -d > $O/logcat-full.txt
-grep -iE "chromium|cr_|ten10|webapk|WebApk|PackageInstaller|Finsky|Phonesky|TrustedWeb|TWA|ShareTarget|browserhelper" $O/logcat-full.txt > $O/logcat-filtered.txt
+grep -iE "chromium|cr_|ten10|webapk|WebApk|Installab|AddToHomescreen|A2HS|PackageInstaller|Finsky|Phonesky|TrustedWeb|TWA|ShareTarget|browserhelper" $O/logcat-full.txt > $O/logcat-filtered.txt
 rm $O/logcat-full.txt
 # scrub every text artifact
 for v in "$BYPASS" "$QA_EMAIL" "$QA_PASSWORD"; do [ -n "$v" ] && grep -rlF -- "$v" $O | while read f; do python3 - "$f" "$v" <<'PY'

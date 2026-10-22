@@ -68,6 +68,12 @@ def main():
             print("=== displayMode standalone:", ev(ws, "matchMedia('(display-mode: standalone)').matches"))
             print("=== share-db:", scrub(ev(ws, "new Promise(res=>{const q=indexedDB.open('ten10-share-target',1);q.onupgradeneeded=()=>q.result.createObjectStore('files',{keyPath:'id'});q.onsuccess=()=>{try{const g=q.result.transaction('files').objectStore('files').getAll();g.onsuccess=()=>res(JSON.stringify(g.result.map(x=>({name:x.name,type:x.type,text:x.text,size:x.buffer?x.buffer.byteLength:0}))));}catch(e){res('err '+e)}};q.onerror=()=>res('open err')})")))
         return
+    if cmd == "installability":
+        ws = connect(pick())
+        print("errors:", scrub(json.dumps(call(ws, "Page.getInstallabilityErrors").get("result"))))
+        m = call(ws, "Page.getAppManifest").get("result", {})
+        print("manifest url:", scrub(m.get("url")), "errors:", scrub(json.dumps(m.get("errors"))))
+        return
     if cmd == "login":
         ws = connect(pick())
         email = json.dumps(os.environ["QA_EMAIL"]); pw = json.dumps(os.environ["QA_PASSWORD"])
