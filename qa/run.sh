@@ -28,6 +28,9 @@ python3 qa/cdp.py login 2>&1 | tee $O/text/login-result.txt; sleep 12
 shot pwa-after-login
 
 echo "== PWA: install via Chrome menu"
+python3 qa/cdp.py installability > $O/installability-before.txt 2>&1
+python3 qa/cdp.py holdheaders 900 > $O/holdheaders.txt 2>&1 &
+sleep 20
 uia tap 'menu_button|More options|Customize and control'; sleep 2
 shot pwa-menu
 python3 qa/cdp.py installability > $O/installability.txt 2>&1
