@@ -21,7 +21,7 @@ for i in $(seq 1 10); do python3 qa/cdp.py tabs && break; sleep 3; done
 shot chrome-start
 
 echo "== PWA: bypass + login"
-python3 qa/cdp.py nav "https://$H/?x-vercel-protection-bypass=$BYPASS&x-vercel-set-bypass-cookie=true" ; sleep 12
+python3 qa/cdp.py nav "https://$H/?x-vercel-protection-bypass=$BYPASS&x-vercel-set-bypass-cookie=samesitenone" ; sleep 12
 python3 qa/cdp.py nav "https://$H/login"; sleep 10; dismiss
 shot pwa-login-page
 python3 qa/cdp.py login 2>&1 | tee $O/text/login-result.txt; sleep 12
@@ -30,10 +30,11 @@ shot pwa-after-login
 echo "== PWA: install via Chrome menu"
 uia tap 'menu_button|More options|Customize and control'; sleep 2
 shot pwa-menu
-uia tap '^(Install app|Add to (H|h)ome screen)$'; sleep 4
+python3 qa/uia.py tap '^Install app$' | tee $O/install-menu.txt || python3 qa/uia.py tap '^Add to (H|h)ome screen$' | tee -a $O/install-menu.txt
+sleep 4
 shot pwa-install-dialog
-uia tap '^(Install|Add)$'; sleep 6
-uia tap '^(Add|Add automatically|Install|Add to home screen)$'; sleep 40
+uia tap '^Install$'; sleep 5
+for i in $(seq 1 18); do adb shell pm list packages | grep -qi webapk && break; uia tap '^(Install|Add|Add automatically|Add to home screen)$' >/dev/null; sleep 5; done
 shot pwa-after-install
 adb shell pm list packages | grep -i webapk | tee $O/webapk-packages.txt
 WEBAPK=$(sed -n 's/package://p' $O/webapk-packages.txt | head -1)
@@ -41,6 +42,7 @@ adb shell input keyevent HOME; sleep 2; shot home-screen
 
 TEXT="QA share text: paid 120 ILS to Dentist Cohen on 2026-10-22"
 adb install -r qa-sharer.apk | tee $O/sharer-install.txt
+chooser(){ adb shell am start -n com.ten10qa.sharer/.ShareActivity --es pkg "''" --es mode "$1" --es text "\"${2:-}\"" --ez chooser true | tee -a $O/am.txt; }
 share(){ adb shell am start -n com.ten10qa.sharer/.ShareActivity --es pkg "$1" --es mode "$2" --es text "\"${3:-}\"" | tee -a $O/am.txt; }
 adb push qa/assets/receipt.png /sdcard/Download/receipt.png
 adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Download/receipt.png; sleep 4
@@ -52,8 +54,15 @@ echo "file uri: $URI" | tee $O/file-uri.txt
 if [ -n "$WEBAPK" ]; then
   echo "== PWA text (WebAPK $WEBAPK)"
   adb shell dumpsys package "$WEBAPK" | grep -A3 -E "android.intent.action.SEND" > $O/webapk-intents.txt
-  share "$WEBAPK" text "$TEXT (PWA)"; sleep 20; shot pwa-text-share
-  share "$WEBAPK" file; sleep 20; shot pwa-file-share
+  adb shell cmd package query-activities -a android.intent.action.SEND -t text/plain | grep -iE "webapk|name=" > $O/webapk-share-activities.txt
+  for mode in text file; do
+    chooser "$mode" "$TEXT (PWA sheet)"; sleep 6; shot pwa-$mode-sharesheet
+    uia tap '^Ten10' || { adb shell input swipe 160 560 160 200; sleep 2; shot pwa-$mode-sharesheet-scrolled; uia tap '^Ten10'; }
+    sleep 25; shot pwa-$mode-sheet-result
+    adb shell am force-stop "$WEBAPK"; sleep 2
+  done
+  share "$WEBAPK" text "$TEXT (PWA direct)"; sleep 25; shot pwa-text-direct
+  share "$WEBAPK" file; sleep 25; shot pwa-file-direct
 else
   echo "NO WEBAPK minted; falling back to in-page POST /share-target (exercises SW + app intake, not the OS share sheet)" | tee $O/pwa-fallback.txt
   adb shell am start -n $A/com.google.android.apps.chrome.Main -d "https://$H/"; sleep 10
@@ -77,7 +86,7 @@ adb shell am force-stop com.ten10_app.twa; adb shell am force-stop $A; sleep 2
 share com.ten10_app.twa file; sleep 25; shot twa-file-share-cold
 if python3 qa/cdp.py text 2>/dev/null | grep -q "/login"; then python3 qa/cdp.py login 2>&1 | tee -a $O/text/login-result.txt; sleep 15; shot twa-after-login; fi
 adb logcat -d > $O/logcat-full.txt
-grep -iE "chromium|cr_|ten10|webapk|TrustedWeb|TWA|ShareTarget|browserhelper" $O/logcat-full.txt > $O/logcat-filtered.txt
+grep -iE "chromium|cr_|ten10|webapk|WebApk|PackageInstaller|Finsky|Phonesky|TrustedWeb|TWA|ShareTarget|browserhelper" $O/logcat-full.txt > $O/logcat-filtered.txt
 rm $O/logcat-full.txt
 # scrub every text artifact
 for v in "$BYPASS" "$QA_EMAIL" "$QA_PASSWORD"; do [ -n "$v" ] && grep -rlF -- "$v" $O | while read f; do python3 - "$f" "$v" <<'PY'

@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [google_apis, google_apis_playstore]
+        api: [35, 36]
     timeout-minutes: 60
     env:
       PREVIEW_HOST: ${{ inputs.preview_host }}
@@ -35,8 +35,8 @@ jobs:
       - name: Emulator + share tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
-          target: ${{ matrix.target }}
+          api-level: ${{ matrix.api }}
+          target: google_apis_playstore
           arch: x86_64
           ram-size: 4096M
           disk-size: 6000M
@@ -46,5 +46,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: android-share-${{ matrix.target }}
+          name: android-share-api${{ matrix.api }}
           path: artifacts/

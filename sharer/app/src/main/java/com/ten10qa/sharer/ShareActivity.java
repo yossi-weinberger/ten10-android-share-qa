@@ -33,8 +33,14 @@ public class ShareActivity extends Activity {
                 send.putExtra(Intent.EXTRA_TEXT, getIntent().getStringExtra("text"));
             }
             send.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            if (pkg != null) send.setPackage(pkg);
-            startActivity(send);
+            if (pkg != null && !pkg.isEmpty()) send.setPackage(pkg);
+            if (getIntent().getBooleanExtra("chooser", false)) {
+                Intent c = Intent.createChooser(send, "Share to");
+                c.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(c);
+            } else {
+                startActivity(send);
+            }
             Log.i("Ten10QaSharer", "sent " + mode + " to " + pkg);
         } catch (Exception e) {
             Log.e("Ten10QaSharer", "share failed", e);
