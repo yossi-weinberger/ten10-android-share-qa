@@ -4,10 +4,11 @@
 set -euo pipefail
 H="$PREVIEW_HOST"
 mkdir -p twa && cp qa/assets/icon-512.png twa/icon.png
+curl -fsS -H "x-vercel-protection-bypass: $BYPASS" "https://$H/manifest.json" -o twa/manifest.json
 (cd twa && python3 -m http.server 8765 >/dev/null 2>&1 &)
 sleep 1
 jq --arg h "$H" '.host=$h | .startUrl="/?twa=true" | .iconUrl="http://127.0.0.1:8765/icon.png" | .maskableIconUrl="http://127.0.0.1:8765/icon.png"
-  | .webManifestUrl=("https://"+$h+"/manifest.json") | .fullScopeUrl=("https://"+$h+"/")
+  | .webManifestUrl="http://127.0.0.1:8765/manifest.json" | .fullScopeUrl=("https://"+$h+"/")
   | .shareTarget.action=("https://"+$h+"/share-target") | .features={} | .enableNotifications=false
   | .signingKey={"path":"./debug.keystore","alias":"androiddebugkey"}' qa/twa-manifest.ten10.json > twa/twa-manifest.json
 mkdir -p ~/.bubblewrap
