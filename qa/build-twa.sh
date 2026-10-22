@@ -9,7 +9,7 @@ curl -fsS -H "x-vercel-protection-bypass: $BYPASS" "https://$H/manifest.json" -o
 sleep 1
 jq --arg h "$H" '.host=$h | .startUrl="/?twa=true" | .iconUrl="http://127.0.0.1:8765/icon.png" | .maskableIconUrl="http://127.0.0.1:8765/icon.png"
   | .webManifestUrl="http://127.0.0.1:8765/manifest.json" | .fullScopeUrl=("https://"+$h+"/")
-  | .shareTarget.action=("https://"+$h+"/share-target") | .features={} | .enableNotifications=false
+  | .shareTarget.action=("https://"+$h+"/share-target") | .minSdkVersion=24 | .features={} | .enableNotifications=false
   | .signingKey={"path":"./debug.keystore","alias":"androiddebugkey"}' qa/twa-manifest.ten10.json > twa/twa-manifest.json
 mkdir -p ~/.bubblewrap
 echo "{\"jdkPath\":\"$JAVA_HOME\",\"androidSdkPath\":\"$ANDROID_HOME\"}" > ~/.bubblewrap/config.json
